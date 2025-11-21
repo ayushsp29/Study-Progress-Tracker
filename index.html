@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Study Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            900: '#111827',
+                            950: '#0b0f19',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -8px; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Locked State for Slider Thumb */
+        input[type=range]:disabled::-webkit-slider-thumb {
+            background: #6b7280;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #374151;
+        }
+        
+        /* Circular Progress */
+        .circular-chart {
+            display: block;
+            margin: 10px auto;
+            max-width: 80%;
+            max-height: 250px;
+        }
+        .circle-bg {
+            fill: none;
+            stroke: #374151;
+            stroke-width: 3.8;
+        }
+        .circle {
+            fill: none;
+            stroke-width: 2.8;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.6s ease 0s;
+        }
+        .percentage {
+            fill: #fff;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 0.5em;
+            text-anchor: middle;
+        }
+
+        /* Checkbox Animation */
+        .checkbox-wrapper input:checked + div {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .checkbox-wrapper input:checked + div svg {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen font-sans selection:bg-blue-500 selection:text-white pb-10">
+
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        
+        <!-- Header Section -->
+        <header class="flex flex-col md:flex-row items-center justify-between mb-8 bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+            <div class="mb-6 md:mb-0 text-center md:text-left">
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                    Study Progress Tracker
+                </h1>
+                <p class="text-gray-400 mt-2">Daily progress is calculated based on remaining days.</p>
+                <div class="mt-4 text-sm font-medium px-4 py-2 bg-gray-800 rounded-lg inline-block border border-gray-700">
+                    Today: <span id="current-date" class="text-blue-300"></span>
+                </div>
+            </div>
+            
+            <!-- Overall Progress -->
+            <div class="relative w-32 h-32 flex items-center justify-center">
+                <svg viewBox="0 0 36 36" class="circular-chart w-full h-full">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="circle stroke-blue-500" stroke-dasharray="0, 100" id="overall-circle" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <text x="18" y="20.35" class="percentage" id="overall-text">0%</text>
+                </svg>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Daily Checklist -->
+            <div class="lg:col-span-1">
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-lg sticky top-6">
+                    <div class="flex justify-between items-end mb-4">
+                        <h2 class="text-xl font-bold text-white flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                            Daily Checklist
+                        </h2>
+                        <span id="daily-percent-text" class="text-xs font-mono text-green-400">0% Done</span>
+                    </div>
+
+                    <!-- Daily Progress Bar -->
+                    <div class="w-full bg-gray-800 rounded-full h-2 mb-6">
+                        <div id="daily-progress-bar" class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    
+                    <!-- Dynamic Schedule Box -->
+                    <div id="today-schedule-box" class="mb-6 p-4 rounded-lg bg-indigo-900/20 border border-indigo-500/30 hidden">
+                        <p class="text-xs text-indigo-300 uppercase tracking-wide font-bold mb-1">Scheduled for Today</p>
+                        <p id="today-schedule-subject" class="text-lg font-bold text-white">--</p>
+                    </div>
+
+                    <div id="checklist-container" class="space-y-3">
+                        <!-- Checkboxes injected here -->
+                    </div>
+
+                    <p class="text-xs text-gray-600 mt-6 text-center italic">
+                        Tasks reset automatically at midnight.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right Column: Progress Cards -->
+            <div class="lg:col-span-2">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                    Syllabus Progress
+                </h2>
+                <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Cards injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        
+        const subjectsConfig = [
+            { id: 'core-java', name: 'Core Java', deadline: '2025-11-30', color: 'text-orange-400', isDaily: true },
+            { id: 'cn', name: 'Computer Networks (CN)', deadline: '2025-12-05', color: 'text-blue-400', isDaily: false },
+            { id: 'sepm', name: 'SEPM / ICPM', deadline: '2025-12-07', color: 'text-pink-400', isDaily: false },
+            { id: 'dbms', name: 'DBMS', deadline: '2025-12-09', color: 'text-green-400', isDaily: false },
+            { id: 'os', name: 'Operating Systems (OS)', deadline: '2025-12-12', color: 'text-yellow-400', isDaily: false },
+            { id: 'apna', name: 'Apna College', deadline: '2025-12-25', color: 'text-red-400', isDaily: true },
+            { id: 'web', name: 'Web Development', deadline: '2025-12-30', color: 'text-purple-400', isDaily: true },
+            { id: 'java-dsa', name: 'Java DSA', deadline: '2026-02-15', color: 'text-indigo-400', isDaily: true },
+            { id: 'adv-dsa', name: 'Advanced DSA', deadline: '2026-04-25', color: 'text-teal-400', isDaily: true }
+        ];
+
+        // Schedule Map based on user's image
+        const scheduleMap = {
+            "2025-11-19": "DBMS", "2025-11-20": "DBMS",
+            "2025-11-21": "Operating Systems (OS)", "2025-11-22": "Operating Systems (OS)",
+            "2025-11-23": "Computer Networks (CN)", "2025-11-24": "Computer Networks (CN)", "2025-11-25": "Computer Networks (CN)",
+            "2025-11-26": "SEPM / ICPM", "2025-11-27": "SEPM / ICPM",
+            "2025-11-28": "DBMS", "2025-11-29": "DBMS",
+            "2025-11-30": "Operating Systems (OS)", "2025-12-01": "Operating Systems (OS)", "2025-12-02": "Operating Systems (OS)",
+            "2025-12-03": "Computer Networks (CN)", "2025-12-04": "Computer Networks (CN)", "2025-12-05": "Computer Networks (CN)",
+            "2025-12-06": "SEPM / ICPM", "2025-12-07": "SEPM / ICPM",
+            "2025-12-08": "DBMS", "2025-12-09": "DBMS",
+            "2025-12-10": "Operating Systems (OS)", "2025-12-11": "Operating Systems (OS)", "2025-12-12": "Operating Systems (OS)"
+        };
+
+        // --- State Management ---
+
+        let subjects = [];
+        // dailyChecklist structure: { "Subject Name": { checked: boolean, earned: number } }
+        let dailyChecklist = {}; 
+
+        function loadData() {
+            // 1. Load Progress Data
+            const saved = localStorage.getItem('myStudyTracker_v2'); 
+            if (saved) {
+                subjects = JSON.parse(saved);
+            } else {
+                subjects = subjectsConfig.map(s => ({...s, progress: 0}));
+            }
+
+            // 2. Load Checklist Data
+            const savedChecklist = localStorage.getItem('myStudyTracker_checklist');
+            const todayKey = new Date().toISOString().split('T')[0];
+            
+            if (savedChecklist) {
+                const parsed = JSON.parse(savedChecklist);
+                if (parsed.date === todayKey) {
+                    dailyChecklist = parsed.items;
+                } else {
+                    dailyChecklist = {}; 
+                }
+            } else {
+                dailyChecklist = {};
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem('myStudyTracker_v2', JSON.stringify(subjects));
+            updateOverall();
+        }
+
+        function saveChecklist() {
+            const todayKey = new Date().toISOString().split('T')[0];
+            const payload = {
+                date: todayKey,
+                items: dailyChecklist
+            };
+            localStorage.setItem('myStudyTracker_checklist', JSON.stringify(payload));
+        }
+
+        // --- Helpers ---
+
+        function getDaysLeft(deadlineStr) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const deadline = new Date(deadlineStr);
+            const diffTime = deadline - today;
+            const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            // If days are 0 or negative (deadline passed or today), return 1 to ensure calculations work (100% effort today)
+            return days <= 0 ? 1 : days;
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        // --- Rendering ---
+
+        function updateDailyProgressBar() {
+            const total = document.querySelectorAll('.checkbox-wrapper').length;
+            if (total === 0) return;
+
+            // Check if item exists and is checked (handles old format vs new format gracefully)
+            const checked = Object.values(dailyChecklist).filter(item => item && (item.checked === true || item === true)).length;
+            const percent = Math.round((checked / total) * 100);
+
+            document.getElementById('daily-progress-bar').style.width = `${percent}%`;
+            document.getElementById('daily-percent-text').innerText = `${percent}% Done`;
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container');
+            const scheduleBox = document.getElementById('today-schedule-box');
+            const scheduleText = document.getElementById('today-schedule-subject');
+            
+            container.innerHTML = '';
+            
+            const now = new Date();
+            const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            
+            const scheduledSubjectName = scheduleMap[todayStr];
+
+            if (scheduledSubjectName) {
+                scheduleBox.classList.remove('hidden');
+                scheduleText.innerText = scheduledSubjectName;
+                createCheckboxItem(container, scheduledSubjectName, true, 0);
+            } else {
+                scheduleBox.classList.add('hidden');
+            }
+
+            const dailySubjects = subjectsConfig.filter(s => s.isDaily);
+            dailySubjects.forEach((sub, idx) => {
+                createCheckboxItem(container, sub.name, false, idx + 1);
+            });
+            
+            updateDailyProgressBar();
+        }
+
+        function createCheckboxItem(container, name, isPriority, idx) {
+            // Handle both old (boolean) and new (object) formats for safety
+            const record = dailyChecklist[name];
+            const isChecked = record ? (record.checked !== undefined ? record.checked : record) : false;
+            
+            const div = document.createElement('div');
+            div.id = `chk-item-${idx}`;
+            div.className = `checkbox-wrapper flex items-center justify-between bg-gray-800 p-3 rounded-lg border border-gray-700 cursor-pointer hover:border-gray-600 transition ${isPriority ? 'border-indigo-500 bg-indigo-900/10' : ''}`;
+            
+            div.innerHTML = getCheckboxHTML(name, isPriority, isChecked);
+
+            div.onclick = (e) => {
+                handleCheckToggle(name, isPriority, div);
+            };
+
+            container.appendChild(div);
+        }
+
+        function handleCheckToggle(name, isPriority, divElement) {
+            const subIndex = subjects.findIndex(s => s.name === name);
+            if (subIndex === -1) return; // Should not happen
+
+            // Get current state
+            const record = dailyChecklist[name] || { checked: false, earned: 0 };
+            const wasChecked = record.checked !== undefined ? record.checked : record; // handle legacy boolean
+
+            let newCheckedState = !wasChecked;
+            let earnedValue = 0;
+
+            if (newCheckedState) {
+                // --- LOGIC: CHECKING THE BOX ---
+                // Calculate Increment based on: (Remaining Work) / (Remaining Days)
+                const daysLeft = getDaysLeft(subjects[subIndex].deadline);
+                const remainingWork = 100 - subjects[subIndex].progress;
+                
+                // Increment is the work needed per day to finish on time
+                // If daysLeft is 1, we do all remaining work. 
+                earnedValue = remainingWork / daysLeft;
+
+                // Apply
+                subjects[subIndex].progress = Math.min(100, subjects[subIndex].progress + earnedValue);
+                
+                // Store logic
+                dailyChecklist[name] = { checked: true, earned: earnedValue };
+            } else {
+                // --- LOGIC: UNCHECKING THE BOX ---
+                // Retrieve exactly what we earned when we checked it
+                const valueToDeduct = record.earned || 0; // If legacy boolean, deduct 0 (safe)
+
+                subjects[subIndex].progress = Math.max(0, subjects[subIndex].progress - valueToDeduct);
+                
+                // Remove from checklist
+                dailyChecklist[name] = { checked: false, earned: 0 };
+            }
+
+            saveProgress();
+            saveChecklist();
+            
+            // Update UI
+            divElement.innerHTML = getCheckboxHTML(name, isPriority, newCheckedState);
+            updateDailyProgressBar();
+            renderCards(); // Refresh sliders to show new percentage
+        }
+
+        function getCheckboxHTML(name, isPriority, isChecked) {
+            return `
+                <span class="text-sm font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-200'} select-none">
+                    ${name} ${isPriority ? '<span class="text-xs text-indigo-400 ml-2 font-bold">(SCHEDULED)</span>' : ''}
+                </span>
+                <div class="flex items-center relative">
+                    <div class="w-6 h-6 bg-gray-900 border-2 border-gray-600 rounded flex items-center justify-center transition-colors ${isChecked ? 'bg-emerald-500 border-emerald-500' : ''}">
+                        <svg class="w-4 h-4 text-white ${isChecked ? 'block' : 'hidden'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            subjects.forEach((sub, index) => {
+                const daysLeft = getDaysLeft(sub.deadline);
+                const displayProgress = typeof sub.progress === 'number' ? sub.progress.toFixed(1) : sub.progress;
+                
+                // Re-calculate days left for display (allow negatives for overdue)
+                const today = new Date(); today.setHours(0,0,0,0);
+                const deadline = new Date(sub.deadline);
+                const rawDays = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+
+                let deadlineClass = 'bg-green-900/30 text-green-200 border-green-800';
+                if (rawDays < 0) deadlineClass = 'bg-red-900 text-red-200 border-red-700';
+                else if (rawDays <= 7) deadlineClass = 'bg-red-900/50 text-red-200 border-red-800';
+                else if (rawDays <= 30) deadlineClass = 'bg-yellow-900/40 text-yellow-200 border-yellow-800';
+
+                const daysText = rawDays < 0 ? `Overdue (${Math.abs(rawDays)}d)` : `${rawDays}d left`;
+
+                const card = document.createElement('div');
+                card.className = 'bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-lg hover:border-gray-700 transition-all';
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-lg font-bold ${sub.color}">${sub.name}</h3>
+                        <span class="text-xl font-bold text-white" id="pct-${index}">${displayProgress}%</span>
+                    </div>
+
+                    <div class="mb-4">
+                        <input 
+                            type="range" min="0" max="100" step="0.1" value="${sub.progress}" 
+                            disabled
+                            class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-not-allowed focus:outline-none opacity-80 pointer-events-none"
+                        >
+                    </div>
+
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Due: ${formatDate(sub.deadline)}</span>
+                        <span class="px-2 py-0.5 rounded border ${deadlineClass}">${daysText}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateOverall() {
+            const total = subjects.reduce((acc, curr) => acc + curr.progress, 0);
+            const average = Math.round(total / subjects.length);
+            
+            const circle = document.getElementById('overall-circle');
+            const text = document.getElementById('overall-text');
+            
+            circle.setAttribute('stroke-dasharray', `${average}, 100`);
+            
+            if(average < 30) circle.setAttribute('stroke', '#ef4444');
+            else if(average < 70) circle.setAttribute('stroke', '#eab308');
+            else circle.setAttribute('stroke', '#3b82f6');
+
+            text.textContent = `${average}%`;
+        }
+
+        function init() {
+            const dateOptions = { weekday: 'long', month: 'short', day: 'numeric' };
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', dateOptions);
+            
+            loadData();
+            renderCards();
+            renderChecklist(); 
+            updateOverall();
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
